@@ -1,0 +1,715 @@
+---
+title: "Assignment 1: Neural Networks"
+author: "Aamir Sohaib"
+date: "September27th, 2026"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: show
+    theme: flatly
+    highlight: tango
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning = FALSE,
+  message = FALSE,
+  fig.width = 9,
+  fig.height = 5.5,
+  fig.align = "center",
+  dpi = 120
+)
+
+required_packages <- c("keras3", "tensorflow", "ggplot2", "dplyr", "tidyr", "knitr")
+missing_packages <- required_packages[!vapply(required_packages, requireNamespace, logical(1), quietly = TRUE)]
+
+if (length(missing_packages) > 0) {
+  stop(
+    "Install the following R packages before knitting: ",
+    paste(missing_packages, collapse = ", "),
+    ". See the Installation section below."
+  )
+}
+
+library(keras3)
+library(tensorflow)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(knitr)
+
+theme_set(theme_minimal(base_size = 12))
+set_random_seed(123)
+```
+
+<style>
+.main-container { max-width: 1200px !important; }
+table { width: 100% !important; font-size: 0.86em; }
+th, td { white-space: normal !important; padding: 6px 8px !important; }
+img { max-width: 100%; height: auto; }
+</style>
+
+# Purpose
+
+Purpose of this assignment is to extend neural network model used for IMDB movie review example. I compare changes to network depth, hidden layer width, loss function, activation function, dropout, and L2 regularization. The goal is not simply to obtain high training accuracy rather it is to determine which design generalizes most effectively to reviews the model did not use to update its weights.
+
+This report addresses the assignment requirements by:
+
+1. Comparing one, two, and three hidden layers.
+2. Comparing 16, 32, and 64 hidden units.
+3. Comparing binary crossentropy with mean squared error.
+4. Comparing ReLU with tanh activation.
+5. Testing dropout and L2 regularization.
+6. Summarizing validation and test results in graphs and a table.
+7. Selecting a final model primarily from validation performance.
+
+
+```{r installation, eval=FALSE}
+install.packages(c(
+  "keras3",
+  "tensorflow",
+  "reticulate",
+  "ggplot2",
+  "dplyr",
+  "tidyr",
+  "knitr",
+  "rmarkdown"))
+
+library(keras3)
+install_keras(envname = "r-keras", backend = "tensorflow")
+```
+
+
+## Load IMDB dataset
+
+Keras IMDB dataset contains 25,000 training reviews and 25,000 test reviews. Each review is already represented as sequence of integer word indexes. Label of 0 represents negative review and label of 1 represents a positive review. Only 10,000 most frequently occurring words are retained.
+
+```{r}
+num_words <- 10000L
+
+imdb <- dataset_imdb(
+  num_words = num_words,
+  seed = 123L)
+
+train_sequences <-imdb$train$x
+train_labels <- as.numeric(imdb$train$y)
+test_sequences <-imdb$test$x
+test_labels <- as.numeric(imdb$test$y)
+
+data_summary <- data.frame(
+  Data_set =c("Original training set", "Test set"),
+  Reviews = c(length(train_sequences), length(test_sequences)),
+  Negative= c(sum(train_labels == 0),sum(test_labels == 0)),
+  Positive= c(sum(train_labels == 1), sum(test_labels == 1)))
+
+kable(data_summary, caption = "IMDB dataset composition")
+```
+
+## Convert reviews to multi-hot tensors
+
+Reviews do not all contain same number of words. Following function converts every review into a fixed 10,000 position vector. A position is 1 when the corresponding word appears in review and 0 otherwise. Because several positions may be active, this is more precisely called multi-hot encoding.
+
+The Keras word indexes are zero based, while R matrix columns are one based. Therefore, 1 is added to each valid word index before it is used as a column number.
+
+```{r}
+vectorize_sequences <- function(sequences, dimension = 10000L) {
+  results <- matrix(
+    0,
+    nrow = length(sequences),
+    ncol = dimension)
+
+  for (i in seq_along(sequences)) {
+    indexes <- unique(as.integer(sequences[[i]]))
+    indexes <- indexes[indexes >= 0L & indexes < dimension]
+    results[i, indexes + 1L] <- 1
+  }
+
+  results
+}
+
+x_train_all <- vectorize_sequences(train_sequences, num_words)
+x_test <-vectorize_sequences(test_sequences, num_words)
+y_train_all <-train_labels
+y_test <-test_labels
+
+tensor_summary <- data.frame(
+  Tensor =c("x_train_all", "y_train_all", "x_test", "y_test"),
+  Shape =c(
+    paste(dim(x_train_all), collapse = " x "),
+    length(y_train_all),
+    paste(dim(x_test), collapse = " x "),
+    length(y_test)))
+
+kable(tensor_summary, caption = "Prepared tensor shapes")
+```
+
+## Create training and validation sets
+
+The first 10,000 original training reviews are reserved for validation. Remaining 15,000 reviews update the model's weights. All models use exactly the same training and validation observations.
+
+```{r}
+validation_rows<- 1:10000
+training_rows<- 10001:25000
+
+x_val <-x_train_all[validation_rows, ,drop = FALSE]
+y_val <-y_train_all[validation_rows]
+
+partial_x_train <- x_train_all[training_rows, , drop = FALSE]
+partial_y_train<- y_train_all[training_rows]
+
+split_summary<- data.frame(
+  Split = c("Model training", "Validation", "Test"),
+  Reviews =c(nrow(partial_x_train), nrow(x_val), nrow(x_test)),
+  Purpose =c(
+    "Update model weights",
+    "Compare models and select hyperparameters",
+    "Report performance on unseen reviews"))
+
+kable(split_summary, caption = "Data used in the experiment")
+```
+
+# Experimental Method
+
+Baseline contains two hidden dense layers with 16 units and ReLU activation. Its output is one sigmoid unit, which estimates probability that a review is positive. RMSprop is used as optimizer, binary crossentropy as baseline loss, and accuracy as evaluation metric.
+
+To make comparison fair, every experiment uses:
+
+- Same training, validation, and test observations
+- Same random seed
+- RMSprop optimization
+- Maximum of 20 epochs
+- Batch size of 512
+- Early stopping with best validationc accuracy weights restored
+
+Changed factor is shown in experiment name. Test scores are recorded because the assignment requests validation and test accuracy. However, the final model is selected using validation performance rather than test performance.
+
+## Model-building function
+
+```{r}
+build_imdb_model <- function(
+    hidden_units = c(16L, 16L),
+    activation = "relu",
+    loss_function = "binary_crossentropy",
+    dropout_rate = 0,
+    l2_rate = 0) {
+
+  clear_session()
+  set_random_seed(123)
+
+  kernel_regularizer <- if (l2_rate > 0) {
+    regularizer_l2(l2_rate)} else {NULL}
+
+  model <- keras_model_sequential(input_shape = c(num_words))
+
+  for (units in hidden_units) {
+    model <- model |>
+      layer_dense(
+        units = units,
+        activation = activation,
+        kernel_regularizer = kernel_regularizer)
+
+    if (dropout_rate > 0) {model <- model |>
+        layer_dropout(rate = dropout_rate)}}
+
+  model <- model |>
+    layer_dense(units = 1L, activation = "sigmoid")
+
+  model |> compile(
+    optimizer = optimizer_rmsprop(),
+    loss = loss_function,
+    metrics = list("accuracy")
+  )
+
+  model
+}
+```
+
+## Experiment definitions
+
+First experiment is class baseline. Each later experiment changes one principal aspect of that baseline. Final two experiments test techniques intended to reduce overfitting.
+
+```{r}
+experiments <- list(
+  list(
+    name = "Baseline: 2 x 16 ReLU",
+    units = c(16L, 16L),
+    activation = "relu",
+    loss = "binary_crossentropy",
+    dropout = 0,
+    l2 = 0),
+  list(
+    name = "1 hidden layer",
+    units = c(16L),
+    activation = "relu",
+    loss = "binary_crossentropy",
+    dropout = 0,
+    l2 = 0),
+  list(
+    name = "3 hidden layers",
+    units = c(16L, 16L, 16L),
+    activation = "relu",
+    loss = "binary_crossentropy",
+    dropout = 0,
+    l2 = 0),
+  list(
+    name = "2 x 32 units",
+    units = c(32L, 32L),
+    activation = "relu",
+    loss = "binary_crossentropy",
+    dropout = 0,
+    l2 = 0),
+  list(
+    name = "2 x 64 units",
+    units = c(64L, 64L),
+    activation = "relu",
+    loss = "binary_crossentropy",
+    dropout = 0,
+    l2 = 0),
+  list(
+    name = "MSE loss",
+    units = c(16L, 16L),
+    activation = "relu",
+    loss = "mean_squared_error",
+    dropout = 0,
+    l2 = 0),
+  list(
+    name = "Tanh activation",
+    units = c(16L, 16L),
+    activation = "tanh",
+    loss = "binary_crossentropy",
+    dropout = 0,
+    l2 = 0),
+  list(
+    name = "Dropout 0.5",
+    units = c(16L, 16L),
+    activation = "relu",
+    loss = "binary_crossentropy",
+    dropout = 0.5,
+    l2 = 0 ),
+  list(
+    name = "L2 regularization",
+    units = c(16L, 16L),
+    activation = "relu",
+    loss = "binary_crossentropy",
+    dropout = 0,
+    l2 = 0.001))
+
+experiment_plan <- do.call(
+  rbind,
+  lapply(experiments, function(config) {
+    data.frame(
+      Model = config$name,
+      Hidden_layers = length(config$units),
+      Units = paste(config$units, collapse = "-"),
+      Activation = config$activation,
+      Loss = config$loss,
+      Dropout = config$dropout,
+      L2 = config$l2)}))
+
+kable(experiment_plan, caption = "Planned IMDB experiments")
+```
+
+# Model Training
+
+Following block trains all nine models. On an ordinary laptop this may take several minutes. Early stopping callback restores weights from epoch with the strongest validation accuracy.
+
+```{r,cache=FALSE}
+histories <- list()
+trained_models <- list()
+result_rows <- list()
+
+for (i in seq_along(experiments)) {
+  config <- experiments[[i]]
+
+  cat(
+    "\nExperiment", i, "of", length(experiments),
+    "-", config$name, "\n")
+
+  model <- build_imdb_model(
+    hidden_units =config$units,
+    activation= config$activation,
+    loss_function =config$loss,
+    dropout_rate = config$dropout,
+    l2_rate =config$l2)
+
+  early_stopping <- callback_early_stopping(
+    monitor= "val_accuracy",
+    mode ="max",
+    patience= 4L,
+    restore_best_weights = TRUE)
+
+  history<- model |> fit(
+    x= partial_x_train,
+    y= partial_y_train,
+    epochs = 20L,
+    batch_size = 512L,
+    validation_data = list(x_val, y_val),
+    callbacks = list(early_stopping),
+    verbose = 2)
+
+  validation_accuracy <- as.numeric(history$metrics$val_accuracy)
+  validation_loss<- as.numeric(history$metrics$val_loss)
+  training_accuracy<- as.numeric(history$metrics$accuracy)
+  best_epoch <-which.max(validation_accuracy)
+
+  test_metrics <-model |> evaluate(x_test, y_test, verbose = 0)
+
+  result_rows[[i]] <- data.frame(
+    Model = config$name,
+    Hidden_layers = length(config$units),
+    Units = paste(config$units, collapse = "-"),
+    Activation = config$activation,
+    Loss =config$loss,
+    Dropout = config$dropout,
+    L2 =config$l2,
+    Epochs_run =length(validation_accuracy),
+    Best_epoch= best_epoch,
+    Training_accuracy_at_best_epoch = training_accuracy[best_epoch],
+    Best_validation_accuracy =validation_accuracy[best_epoch],
+    Validation_loss_at_best_epoch= validation_loss[best_epoch],
+    Test_accuracy= as.numeric(test_metrics[["accuracy"]]),
+    Test_loss =as.numeric(test_metrics[["loss"]]))
+
+  histories[[config$name]] <- history
+  trained_models[[config$name]] <- model}
+
+results <- bind_rows(result_rows) |>
+  arrange(desc(Best_validation_accuracy)) |>
+  mutate(
+    Validation_gap = Training_accuracy_at_best_epoch - Best_validation_accuracy)
+
+dir.create("results", showWarnings = FALSE)
+write.csv(results, "results/imdb_experiment_results.csv", row.names = FALSE)
+```
+
+# Results
+
+## Complete comparison
+
+The models are ordered by best validation accuracy. First table contains only columns needed for main comparison so that it remains readable on screen and in PDF. The second, narrower table focuses on overfitting.
+
+```{r results-table}
+display_results <-results |>
+  transmute(
+    Model,
+    Architecture= paste0(Hidden_layers, " layer(s), ", Units, " units"),
+    Activation,
+    Loss =ifelse(Loss == "binary_crossentropy", "Binary CE", "MSE"),
+    `Best epoch`= Best_epoch,
+    `Validation accuracy`=round(Best_validation_accuracy, 4),
+    `Test accuracy`=round(Test_accuracy, 4))
+
+kable(display_results,
+  caption = "Main comparison of the IMDB models",
+  align = c("l", "l", "c", "c", "c", "c", "c"))
+
+overfitting_results <-results |>
+  transmute(
+    Model,
+    `Training accuracy` = round(Training_accuracy_at_best_epoch, 4),
+    `Validation accuracy` = round(Best_validation_accuracy, 4),
+    `Training minus validation` = round(Validation_gap, 4))
+
+kable(overfitting_results,
+  caption = "Training and validation gap at the selected epoch",
+  align = c("l","c","c","c"))
+```
+
+## Validation-accuracy comparison
+
+```{r}
+ggplot(
+  results,
+  aes(
+    x =reorder(Model, Best_validation_accuracy),
+    y= Best_validation_accuracy,
+    fill =Model == results$Model[1])) +
+  geom_col(show.legend = FALSE) +
+  geom_text(
+    aes(label =sprintf("%.4f", Best_validation_accuracy)),
+    hjust = -0.12,
+    size = 3.5) +
+  scale_fill_manual(values = c("TRUE" = "#2C7FB8", "FALSE" = "#A6CEE3")) +
+  scale_y_continuous(
+    breaks = seq(0.880, 0.890, by = 0.002),
+    labels = function(x) sprintf("%.3f", x)) +
+  coord_flip(
+    ylim = c(0.880, max(results$Best_validation_accuracy) + 0.0012),
+    clip = "off") +
+  labs(
+    title = "Best validation accuracy by model",
+    subtitle = "Axis is zoomed to show small differences between models",
+    x = NULL,
+    y = "Best validation accuracy") +
+  theme(plot.margin = margin(10,35,10,10))
+```
+
+## Validation and test accuracy
+
+```{r validation-test-chart}
+accuracy_comparison <- results |>
+  select(Model, Best_validation_accuracy, Test_accuracy) |>
+  pivot_longer(
+    cols = c(Best_validation_accuracy, Test_accuracy),
+    names_to = "Data",
+    values_to = "Accuracy"
+  ) |>
+  mutate(
+    Data = recode(
+      Data,
+      Best_validation_accuracy = "Validation",
+      Test_accuracy = "Test"))
+
+ggplot(
+  accuracy_comparison,
+  aes(x =reorder(Model, Accuracy), y = Accuracy, fill = Data)) +
+  geom_col(position = position_dodge(width = 0.8), width = 0.7) +
+  geom_text(
+    aes(label =sprintf("%.4f", Accuracy)),
+    position=position_dodge(width = 0.8),
+    hjust= -0.08,
+    size=3)+
+  scale_fill_manual(values =c("Validation" = "#2C7FB8", "Test" = "#F28E2B")) +
+  scale_y_continuous(labels= function(x) sprintf("%.3f", x)) +
+  coord_flip(
+    ylim= c(0.870, max(accuracy_comparison$Accuracy) + 0.003),
+    clip= "off") +labs(
+    title ="Validation and test accuracy",
+    subtitle ="Both scores are shown on a focused scale",
+    x = NULL,
+    y = "Accuracy",
+    fill = "Data") +
+  theme(plot.margin = margin(10, 35, 10, 10))
+```
+
+## Change from baseline
+
+This chart makes it easier to see which changes improved or reduced validation accuracy relative to the original two layer, 16-unit ReLU model.
+
+```{r}
+baseline_accuracy <- results$Best_validation_accuracy[
+  results$Model == "Baseline: 2 x 16 ReLU"]
+
+change_data <- results |>
+  mutate(
+    Change = Best_validation_accuracy - baseline_accuracy,
+    Direction = ifelse(Change >= 0, "Improved or equal", "Lower"))
+
+ggplot(change_data,
+  aes(x = reorder(Model, Change),y = Change, color = Direction)) +
+  geom_hline(yintercept =0, color= "#5B6778", linewidth = 0.5) +
+  geom_segment(aes(xend= Model, y=0, yend = Change), linewidth = 1) +
+  geom_point(size = 3) +
+  geom_text(
+    aes(
+      label = sprintf("%+.4f", Change),
+      hjust = ifelse(Change >= 0, -0.15, 1.15)),
+    size =3) +
+  coord_flip(clip = "off") +
+  scale_y_continuous(limits = c(-0.0035, 0.0025)) +
+  scale_color_manual(
+    values =c("Improved or equal" = "#2C7FB8", "Lower" = "#F28E2B")) +
+  labs(title = "Change in validation accuracy from the baseline",
+    x = NULL,
+    y = "Accuracy difference",
+    color =NULL) +
+  theme(plot.margin = margin(10, 35, 10, 35))
+```
+
+## Training and validation gap
+
+A larger positive gap means the model fit training data much better than validation data, which could be sign of overfitting.
+
+```{r}
+ggplot(results,
+  aes(x = reorder(Model, Validation_gap), y = Validation_gap)) +
+  geom_col(fill = "#6BAED6", width = 0.7) +
+  geom_text(
+    aes(label = sprintf("%.4f", Validation_gap)),
+    hjust = -0.1,
+    size = 3) +
+  coord_flip(clip = "off") +
+  labs(title="Training minus validation accuracy",
+    subtitle="Smaller gaps generally indicate less overfitting",
+    x = NULL,
+    y = "Accuracy gap") +
+  theme(plot.margin = margin(10,35,10, 10))
+```
+
+## Training curves for baseline
+
+```{r}
+history_to_data <- function(history, model_name) {data.frame(
+    Epoch = seq_along(history$metrics$loss),
+    Training_loss = as.numeric(history$metrics$loss),
+    Validation_loss = as.numeric(history$metrics$val_loss),
+    Training_accuracy = as.numeric(history$metrics$accuracy),
+    Validation_accuracy = as.numeric(history$metrics$val_accuracy),
+    Model = model_name)}
+
+baseline_name <- "Baseline: 2 x 16 ReLU"
+baseline_curve_data <- history_to_data(
+  histories[[baseline_name]],
+  baseline_name)
+
+baseline_accuracy_plot <- baseline_curve_data |>
+  select(Epoch, Training_accuracy, Validation_accuracy) |>
+  pivot_longer(-Epoch, names_to = "Series", values_to = "Accuracy") |>
+  ggplot(aes(Epoch, Accuracy, color = Series)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 1.5) +
+  scale_color_manual(
+    values = c(
+      "Training_accuracy" = "#1B9E77",
+      "Validation_accuracy" = "#D95F02"),
+    labels = c(
+      "Training_accuracy" = "Training",
+      "Validation_accuracy" = "Validation"
+    )) +
+  labs(
+    title = "Baseline accuracy by epoch",
+    x = "Epoch",
+    y = "Accuracy",
+    color = NULL)
+
+baseline_loss_plot <- baseline_curve_data |>
+  select(Epoch, Training_loss,Validation_loss) |>
+  pivot_longer(-Epoch,names_to = "Series", values_to = "Loss") |>
+  ggplot(aes(Epoch, Loss, color = Series)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 1.5) +
+  scale_color_manual(
+    values = c(
+      "Training_loss" = "#1B9E77",
+      "Validation_loss" = "#D95F02"),
+    labels = c(
+      "Training_loss" = "Training",
+      "Validation_loss"= "Validation")) +
+  labs(
+    title ="Baseline loss by epoch",
+    x="Epoch",
+    y ="Loss",
+    color= NULL)
+
+baseline_accuracy_plot
+baseline_loss_plot
+```
+
+## Training curves for selected model
+
+```{r}
+best_model_name <-results$Model[1]
+best_history<- histories[[best_model_name]]
+best_curve_data<- history_to_data(best_history, best_model_name)
+
+best_accuracy_plot<- best_curve_data |>
+  select(Epoch, Training_accuracy, Validation_accuracy) |>
+  pivot_longer(-Epoch, names_to = "Series", values_to = "Accuracy") |>
+  ggplot(aes(Epoch, Accuracy, color = Series)) +
+  geom_line(linewidth = 1) +
+  geom_point(size =1.5) +
+  scale_color_manual(
+    values =c("Training_accuracy" = "#1B9E77",
+      "Validation_accuracy" = "#D95F02"),
+    labels = c(
+      "Training_accuracy" ="Training",
+      "Validation_accuracy"= "Validation")) +
+  labs(title =paste("Selected model accuracy:", best_model_name),
+    x= "Epoch",
+    y= "Accuracy",
+    color =NULL)
+
+best_loss_plot<- best_curve_data |>
+  select(Epoch, Training_loss, Validation_loss) |>
+  pivot_longer(-Epoch, names_to = "Series", values_to = "Loss") |>
+  ggplot(aes(Epoch, Loss, color = Series)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 1.5) +
+  scale_color_manual(
+    values =c(
+      "Training_loss" = "#1B9E77",
+      "Validation_loss" = "#D95F02"),
+    labels = c(
+      "Training_loss" = "Training",
+      "Validation_loss" = "Validation")) +
+  labs(title = paste("Selected model loss:", best_model_name),
+    x= "Epoch",
+    y="Loss",
+    color = NULL)
+
+best_accuracy_plot
+best_loss_plot
+```
+
+# Interpretation of Experiments
+
+```{r,include=FALSE}
+get_result <- function(model_name, variable) {
+  results[results$Model == model_name, variable, drop = TRUE][1]
+}
+
+baseline_val<- get_result("Baseline: 2 x 16 ReLU", "Best_validation_accuracy")
+baseline_test<- get_result("Baseline: 2 x 16 ReLU", "Test_accuracy")
+one_layer_val<- get_result("1 hidden layer", "Best_validation_accuracy")
+three_layer_val <- get_result("3 hidden layers", "Best_validation_accuracy")
+units32_val<- get_result("2 x 32 units", "Best_validation_accuracy")
+units64_val<- get_result("2 x 64 units", "Best_validation_accuracy")
+mse_val <-get_result("MSE loss", "Best_validation_accuracy")
+tanh_val <-get_result("Tanh activation", "Best_validation_accuracy")
+dropout_val<- get_result("Dropout 0.5", "Best_validation_accuracy")
+l2_val <- get_result("L2 regularization", "Best_validation_accuracy")
+best_row <- results[1, ]
+```
+
+## Number of hidden layers
+
+The one-hidden-layer model achieved a best validation accuracy of `r sprintf("%.4f", one_layer_val)`, compared with `r sprintf("%.4f", baseline_val)` for the two-layer baseline and `r sprintf("%.4f", three_layer_val)` for the three-hidden-layer model. Therefore, increasing depth `r if (three_layer_val > baseline_val) "improved validation accuracy in this experiment" else "did not improve validation accuracy over the baseline in this experiment"`. More layers create additional representational capacity, but they can also make optimization more difficult and create more opportunities to fit training-specific noise.
+
+## Number of hidden units
+
+The 32-unit model achieved validation accuracy `r sprintf("%.4f", units32_val)`, and the 64-unit model achieved `r sprintf("%.4f", units64_val)`. The baseline 16-unit model achieved `r sprintf("%.4f", baseline_val)`. These results show that increasing capacity `r if (max(units32_val, units64_val) > baseline_val) "helped at least one wider model" else "did not outperform the smaller baseline"`. Wider layers can learn more patterns, but additional parameters do not guarantee better generalization.
+
+## Loss function
+
+Using mean squared error produced validation accuracy `r sprintf("%.4f", mse_val)`, while binary crossentropy in the baseline produced `r sprintf("%.4f", baseline_val)`. `r if (mse_val > baseline_val) "MSE happened to score higher in this run, although binary crossentropy remains the loss designed for binary probability classification." else "Binary crossentropy performed better in this run and is also the more appropriate objective for a binary probability-classification problem."`
+
+## Activation function
+
+The tanh model achieved validation accuracy `r sprintf("%.4f", tanh_val)`, compared with `r sprintf("%.4f", baseline_val)` for ReLU. `r if (tanh_val > baseline_val) "Tanh improved the measured validation result in this experiment." else "Replacing ReLU with tanh did not improve the validation result in this experiment."` ReLU is computationally simple and avoids saturation for positive inputs, whereas tanh compresses activations into the interval from -1 to 1.
+
+## Regularization and dropout
+
+Dropout model achieved validation accuracy `r sprintf("%.4f", dropout_val)`, and the L2 model achieved `r sprintf("%.4f", l2_val)`. Dropout randomly disables a proportion of hidden activations during training, while L2 discourages excessively large weights. Their purpose is to reduce reliance on training-specific patterns. The results indicate that `r if (max(dropout_val, l2_val) > baseline_val) "at least one regularization method improved validation accuracy over the unregularized baseline" else "neither regularization setting exceeded the baseline validation accuracy under the tested settings"`.
+
+# Final Model
+
+Selected configuration is **`r best_row$Model`** because it achieved highest validation accuracy, `r sprintf("%.4f", best_row$Best_validation_accuracy)`. Its restored best weights came from epoch `r best_row$Best_epoch`. The corresponding test accuracy was `r sprintf("%.4f", best_row$Test_accuracy)`, and its test loss was `r sprintf("%.4f", best_row$Test_loss)`.
+
+Test set was not used to rank models. It was used to report how already defined models performed on unseen reviews, while final choice was determined by validation performance.
+
+```{r}
+best_model <- trained_models[[best_model_name]]
+
+best_model |> save_model(
+  "results/final_imdb_model.keras",
+  overwrite = TRUE)
+
+final_summary<- data.frame(
+  Selected_model = best_row$Model,
+  Best_epoch = best_row$Best_epoch,
+  Validation_accuracy =round(best_row$Best_validation_accuracy, 4),
+  Validation_loss= round(best_row$Validation_loss_at_best_epoch, 4),
+  Test_accuracy =round(best_row$Test_accuracy, 4),
+  Test_loss = round(best_row$Test_loss, 4))
+
+kable(final_summary, caption = "Selected IMDB model")
+```
+
+# Conclusion
+
+This experiment demonstrates that neural-network performance depends on both model capacity and the choices used during learning. The two layer baseline achieved validation accuracy `r sprintf("%.4f", baseline_val)` and test accuracy `r sprintf("%.4f", baseline_test)`. Across all tested configurations, **`r best_row$Model`** produced the strongest validation performance at `r sprintf("%.4f", best_row$Best_validation_accuracy)`.
+
+Experiments also show why training accuracy alone is not sufficient. Larger or deeper model may continue fitting the training data without improving validation performance. Validation curves, the training-validation gap, and performance on unseen data provide a more reliable picture of generalization. Based on the controlled comparison, the selected model offered the best observed balance between learning useful patterns and avoiding unnecessary overfitting.
