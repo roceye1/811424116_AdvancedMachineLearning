@@ -1,0 +1,4 @@
+Training Images,Best Epoch,Validation Accuracy (%),Validation Loss
+1000,24,97.4,0.0745
+1500,20,97.4,0.0728
+2000,25,97.6,0.0714

@@ -1,0 +1,4 @@
+Dropout Rate,Seed,Best Epoch,Training Accuracy (%),Validation Accuracy (%),Validation Loss,Accuracy Gap (points)
+0.0,42,24,88.95,79.6,0.427593,9.35
+0.25,42,25,87.0,79.8,0.430374,7.2
+0.5,42,25,86.75,80.2,0.418397,6.55

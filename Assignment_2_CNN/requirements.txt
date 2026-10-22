@@ -1,0 +1,9 @@
+# Versions observed in the executed Kaggle notebook; other packages are Kaggle-provided.
+tensorflow==2.20.0
+pandas==2.3.3
+numpy
+matplotlib
+scikit-learn
+Pillow
+ipython
+notebook

@@ -1,0 +1,5 @@
+Model Type,Training Images,Holdout 1 Accuracy (%),Holdout 1 Loss,Holdout 1 F1,Incorrect
+Scratch,2000,77.95,0.463,0.7733,441
+Scratch,12000,91.4,0.2297,0.9167,172
+Scratch,18000,93.1,0.1806,0.9313,138
+Pretrained,2000,97.0,0.0788,0.9699,60

@@ -1,0 +1,4 @@
+Dropout Rate,Test Images,Holdout 2 Accuracy (%),Holdout 2 Loss,Precision,Recall,F1 Score,Incorrect
+0.0,2000,78.95,0.4638,0.7813,0.804,0.7925,421
+0.25,2000,78.8,0.4667,0.7692,0.823,0.7952,424
+0.5,2000,79.45,0.4571,0.7996,0.786,0.7927,411

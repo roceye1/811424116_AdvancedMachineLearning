@@ -1,0 +1,9 @@
+# Evidence provenance and reproducibility notes
+
+- **Source for models, numbers and figures:** `notebooks/Assignment_2_CNN_Final_Executed.ipynb`, the executed notebook uploaded after the new Kaggle run. Its 21 Python cells have stored outputs, no Python exception outputs, and include ten final figures.
+- **Source for metrics CSVs:** The `results/` CSVs were exported directly from the **notebook's recorded pandas HTML tables**. They match the newer run; historical values from the earlier exploratory notebook are not mixed in.
+- **Source for figures:** The `figures/` PNGs were extracted from the **executed notebook's embedded PNGs**, not the original full-resolution `/kaggle/working/assignment2_master_visuals/*.png` outputs, which were not uploaded as standalone files.
+- **Source for model-specific exact-image audit:** After the notebook was uploaded, the user separately ran the final SHA-256 audit in Kaggle and supplied the 28-row pass table plus exact duplicate group list. CSV records in `audit/` reflect that user-supplied output, not a new independent recomputation from the original 25,000 JPEG files here.
+- **Source for original exploratory history:** `archive/Original_Exploratory_Notebook.ipynb`. It captures the earlier incremental experiments and historically different accuracy estimates; it is not the canonical source for the final tables.
+- **Missing large external artifacts:** The uploaded executed notebook does not contain Kaggle's saved `.keras` checkpoint files, full 25,000-image dataset, generated manifests, or full-resolution PNG exports. They must remain in the saved Kaggle version/output archive for full reproduction and checkpoint-level verification.
+- **Unchanged experiments:** The new final notebook adds a **Markdown explanation** for the later audit but does not rerun experiments, change code cell outputs, relabel source images, or alter measured results.

@@ -1,0 +1,5 @@
+Model,Correct,Incorrect,Accuracy (%)
+scratch_2k,1559,441,77.95
+scratch_12k,1828,172,91.4
+scratch_18k,1862,138,93.1
+pretrained_2k,1940,60,97.0
