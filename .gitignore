@@ -1,0 +1,13 @@
+# Operating-system metadata
+.DS_Store
+**/.DS_Store
+
+# Python cache and temporary files
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+
+# Local Kaggle datasets and checkpoints
+*.keras
+*.h5
+train.zip
