@@ -1,0 +1,3 @@
+model,validation_MAE_C,test_MAE_C,source
+LSTM 64,2.4155595302581787,2.317373275756836,Selected-model output + exported final_test_metrics.csv
+GRU 32,2.4231767654418945,2.339,Executed final cell in revised notebook (rounded to 3 decimals)
