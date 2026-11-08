@@ -10,7 +10,7 @@
 | `assignment-3-time-series-data.ipynb` | Kaggle notebook with the Python implementation, executed results and figures. |
 | `assignment3_experiments.py` | Standalone Python version of the forecasting experiments. |
 | `assignment3_notebook_executed.html` | HTML export of the executed notebook, including code and outputs. |
-| `Assignment3_Time_Series_Experiment_Summary.pdf` | Separate, code-free report with experimental design, figures, results and conclusions. |
+| `Assignment3_Time_Series_Experiment_Summary_Revised.pdf` | Separate, code-free report with experimental design, figures, results and conclusions. |
 | `figures/` | Validation comparison, validation learning curves and a sample held-out forecast. |
 | `results/` | CSV summaries of validation/test metrics and the selected LSTM's test predictions. |
 
