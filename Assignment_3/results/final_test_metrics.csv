@@ -1,0 +1,2 @@
+selected_model,validation_MAE_C,test_MAE_C,test_windows
+LSTM 64,2.4155595302581787,2.317373275756836,1730
