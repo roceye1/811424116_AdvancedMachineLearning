@@ -5,14 +5,6 @@
 **Dataset:** Jena Climate 2009-2016  
 **Objective:** Forecast air temperature 24 hours ahead using five days of hourly observations.
 
-## What to submit
-
-This folder contains all the files needed for the assignment's documented Python code, executed HTML output, separate summary PDF, results table, and reproducibility. The main deliverables are:
-
-1. `assignment-3-revised.ipynb` - **the student's revised Kaggle notebook, copied byte-for-byte without modifications**, with saved executed results.
-2. `assignment3_executed_notebook.html` - exported executed notebook with code, figures, and outputs.
-3. `Assignment3_Experiment_Summary.pdf` - student-revised **code-free** professional summary PDF with graphs, results and conclusions (prepared by Aamir Sohaib). This is the **only PDF** included.
-4. `assignment3_all_models.py` - standalone Python code extracted from the revised notebook, using the same nine neural models plus the baseline.
 
 Additional files:
 
@@ -62,5 +54,3 @@ Additional files:
 ## Assignment compliance
 
 The original instructions explicitly allow any or all suggested improvement methods. This experiment includes **all three** suggestions: unit-count changes within stacked recurrent layers, LSTM-versus-GRU comparisons, and Conv1D combined with an RNN. It evaluates the best-performing validation models on the test split and reports test MAE for every configuration.
-
-Submit the GitHub **repository URL ending in `.git`** to Canvas after uploading these files. The assignment instructions specify an `Assignment 3` folder; this repository uses `Assignment_3` as its folder name.
