@@ -2,8 +2,8 @@ Assignment 3 - final GitHub submission manifest
 SHA256 | bytes | relative path
 
 e9bd764f7a5aa8759a8f83f4097a20d629bc6bfcce32a184877ac6f2d6685947 | 667643 | Assignment3_Expanded_Report.html
-e0922ab0f987fd805eb1e96ab97e6e950a1d76cf8f9525ee0b54cc64ce157d63 | 1027805 | Assignment3_Professional_Experiment_Summary_Aamir_Sohaib.pdf
-c12a9c0655851235764d6d4bd6eafc95ad7dbca643119af5cd2911b5981b082e | 4741 | README.md
+e0922ab0f987fd805eb1e96ab97e6e950a1d76cf8f9525ee0b54cc64ce157d63 | 1027805 | Assignment3_Experiment_Summary.pdf
+38d285b4c007cdb5644c73964df6489297d7c3bbf74864a33eacc727dec36fef | 4730 | README.md
 263abf976fa17b3e5b7802a918b17b3f425020cfca5295d77fb6f464e12a6241 | 374390 | assignment-3-revised.ipynb
 70f91c95108bac02e3bfafbb0daf4fe6c030029349f3cfe7120c2b813827f957 | 13007 | assignment3_all_models.py
 1d9bbe0716e9dd5956fa7a1d0ed915dccfe8b594aa7ffb5e584c7c83887534d6 | 711202 | assignment3_executed_notebook.html
