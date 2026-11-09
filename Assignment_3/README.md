@@ -11,7 +11,7 @@ This folder contains all the files needed for the assignment's documented Python
 
 1. `assignment-3-revised.ipynb` - **the student's revised Kaggle notebook, copied byte-for-byte without modifications**, with saved executed results.
 2. `assignment3_executed_notebook.html` - exported executed notebook with code, figures, and outputs.
-3. `Assignment3_Professional_Experiment_Summary_Aamir_Sohaib.pdf` - student-revised **code-free** professional summary PDF with graphs, results and conclusions (prepared by Aamir Sohaib). This is the **only PDF** included.
+3. `Assignment3_Experiment_Summary.pdf` - student-revised **code-free** professional summary PDF with graphs, results and conclusions (prepared by Aamir Sohaib). This is the **only PDF** included.
 4. `assignment3_all_models.py` - standalone Python code extracted from the revised notebook, using the same nine neural models plus the baseline.
 
 Additional files:
@@ -48,7 +48,7 @@ Additional files:
 | 9 | GRU 64 | 2.469 | 2.387 |
 | 10 | Seasonal persistence | 2.586 | 2.500 |
 
-**Validation-selected winner:** GRU 32, 2.380°C validation MAE and 2.296°C test MAE. Baseline errors were 2.586°C validation and 2.500°C test. This is a 8.0% reduction in validation MAE.
+**Validation-selected winner:** GRU 32, 2.380°C validation MAE and 2.296°C test MAE. Baseline errors were 2.586°C validation and 2.500°C test. This is an 8.0% reduction in validation MAE.
 
 **Test-score nuance:** Stacked GRU 64-32 has a test MAE of 2.295876°C versus 2.295959°C for GRU 32. The difference is only 0.000083°C. The selected winner remains GRU 32 because validation, not test, was used to select the model.
 
@@ -63,4 +63,4 @@ Additional files:
 
 The original instructions explicitly allow any or all suggested improvement methods. This experiment includes **all three** suggestions: unit-count changes within stacked recurrent layers, LSTM-versus-GRU comparisons, and Conv1D combined with an RNN. It evaluates the best-performing validation models on the test split and reports test MAE for every configuration.
 
-Submit the GitHub **repository URL ending in `.git`** to Canvas after uploading these files. The assignment instructions specify an `Assignment 3` folder; this archive uses that exact folder name.
+Submit the GitHub **repository URL ending in `.git`** to Canvas after uploading these files. The assignment instructions specify an `Assignment 3` folder; this repository uses `Assignment_3` as its folder name.
