@@ -1,21 +1,22 @@
 # Assignment 4 — IMDB Sentiment Classification
 
-## Research objective
+## Objective
 
-Compare the validation accuracy of a bidirectional LSTM sentiment classifier using (1) a trainable 100-dimensional word-embedding layer and (2) frozen pretrained GloVe 100-dimensional word embeddings. The task is to predict whether an IMDB movie review expresses positive or negative sentiment.
+This experiment compares two approaches to representing words for positive/negative IMDB movie-review classification: (1) embeddings learned from the labeled reviews and (2) frozen pretrained GloVe embeddings. Both approaches use the same bidirectional LSTM model. Validation accuracy is compared as the amount of training data increases.
 
-## Experimental design
+## Methodology
 
-- **Review length:** 150 tokens maximum (zero-padding for shorter inputs).
-- **Vocabulary:** at most 10,000 tokens, adapted from the training subset separately at each sample size.
-- **Training sizes:** 100, 500, 2,000, 5,000 and 10,000 balanced labeled reviews.
-- **Validation data:** the same 10,000 held-out reviews in each comparison, with a stratified split.
-- **Shared classifier:** bidirectional LSTM (16 units per direction), dropout (0.30), sigmoid output; up to six training epochs with early stopping.
-- **Embedding comparison:** trainable 100-dimensional embeddings versus 100-dimensional frozen GloVe embeddings. The remaining architecture is the same.
+- **Input:** reviews standardized to lowercase with punctuation removed, truncated or padded to 150 tokens.
+- **Vocabulary:** up to 10,000 tokens, adapted separately on each training subset without using validation text.
+- **Training sizes:** 100, 500, 2,000, 5,000, and 10,000 balanced labeled reviews.
+- **Validation:** the same stratified, held-out sample of 10,000 reviews in every run.
+- **Shared model:** 100-dimensional word embeddings, a bidirectional LSTM with 16 units in each direction, 30% dropout, and a sigmoid output.
+- **Approaches:** trainable embeddings learned from scratch versus frozen pretrained GloVe 100-dimensional vectors; downstream LSTM and classifier are trained for both.
+- **Training:** up to six epochs with early stopping based on validation loss.
 
-## Observed validation results
+## Results
 
-| Training reviews | Learned embedding | Frozen GloVe | Difference (percentage points) |
+| Training reviews | Learned embedding | Frozen GloVe | Learned advantage (pp) |
 | ---: | ---: | ---: | ---: |
 | 100 | 52.38% | 51.19% | +1.19 |
 | 500 | 61.91% | 56.71% | +5.20 |
@@ -23,21 +24,24 @@ Compare the validation accuracy of a bidirectional LSTM sentiment classifier usi
 | 5,000 | 81.90% | 76.34% | +5.56 |
 | 10,000 | **83.36%** | **79.54%** | **+3.82** |
 
-A learned embedding had higher validation accuracy at all five tested training sizes, including the first tested size of 100 reviews. The largest observed advantage was **11.92 percentage points** at 2,000 reviews; no crossing point was established between tested sizes.
+Learned embeddings performed better at all five tested training sizes. The largest difference was **11.92 percentage points at 2,000 reviews**. The two methods were very close to the 50% chance reference at only 100 reviews.
 
-![Validation accuracy comparison](assignment4_accuracy_graph.png)
+![Validation accuracy by training size](assignment4_accuracy_graph.png)
 
-## Interpretation and boundaries
+## Interpretation
 
-Both methods improved when given more training examples. Learned embeddings can adapt directly to the movie-review task, whereas the GloVe vectors were held fixed; the results do not prove that this distinction alone caused the differences. All reported scores are **validation accuracies**, not results from an independent test set. These outcomes describe one sampling seed and one model configuration, not universal rankings of pretrained embeddings.
+The learned word vectors were adjustable for the movie-review sentiment task, whereas GloVe vectors were pretrained on general text and kept fixed. This offers a plausible explanation for the observed difference but does not establish the cause. Both models improved as training examples increased.
 
-The experiment **uses LSTM sequence models rather than Transformers**. Self-attention and Transformers were covered conceptually in the course; neither was trained for these results.
+The experiment used an **RNN-based bidirectional LSTM**. Transformers and attention are discussed in the written report for context; no Transformer was trained. Scores are **validation accuracies**, not independent test-set accuracies. The results reflect one model design and one random sampling configuration.
 
-## Research artifacts
+## Files
 
-- `Assignment_4_Kaggle_IMDB_Embeddings.ipynb` — documented Kaggle-compatible experimental source code (no saved execution outputs in this copy).
-- `assignment4_experiment_results.csv` — ten recorded model runs, including validation accuracy, loss, training epochs, and embedding vocabulary information.
-- `assignment4_comparison_table.csv` — paired validation results at each training size.
-- `assignment4_accuracy_graph.png` — actual exported accuracy comparison chart.
-
-The separate final PDF report remains under review and is **not included in this repository folder yet**.
+| File | Contents |
+| --- | --- |
+| `Assignment_4_Kaggle_IMDB_Embeddings.ipynb` | Documented Kaggle-compatible Python code for the ten training runs; repository copy does not retain executed cell outputs |
+| `Assignment_4_Report.pdf` | Six-page final written analysis with experimental design, charts, findings and limitations |
+| `assignment4_report.html` | Kaggle-generated standalone HTML record of the experimental setup, results and accuracy chart |
+| `assignment4_experiment_results.csv` | Ten experiment results including accuracy, loss, epoch counts and embedding coverage |
+| `assignment4_comparison_table.csv` | Side-by-side validation accuracy at each training size |
+| `assignment4_accuracy_graph.png` | Validation accuracy chart exported from the Kaggle experiment |
+| `assignment4_summary.md` | Text summary of methodology, results and interpretation |
