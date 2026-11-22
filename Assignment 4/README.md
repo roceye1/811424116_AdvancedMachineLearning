@@ -1,31 +1,43 @@
 # Assignment 4 — IMDB Sentiment Classification
 
-This folder contains the Kaggle notebook and results of an experiment comparing learned word embeddings with frozen, pretrained GloVe embeddings in the same bidirectional LSTM model.
+## Research objective
 
-## Results
-| Training reviews | Learned embedding | Frozen GloVe |
-|---:|---:|---:|
-| 100 | 52.38% | 51.19% |
-| 500 | 61.91% | 56.71% |
-| 2,000 | 79.31% | 67.34% |
-| 5,000 | 82.13% | 76.34% |
-| 10,000 | 83.35% | 79.54% |
+Compare the validation accuracy of a bidirectional LSTM sentiment classifier using (1) a trainable 100-dimensional word-embedding layer and (2) frozen pretrained GloVe 100-dimensional word embeddings. The task is to predict whether an IMDB movie review expresses positive or negative sentiment.
 
-The learned embedding outperformed frozen GloVe at every tested sample size. These are **validation** accuracies on a fixed set of 10,000 reviews, not independent test-set results. The largest advantage was 11.97 percentage points at 2,000 training reviews.
+## Experimental design
 
-## Experiment
-- IMDB movie-review sentiment prediction (positive / negative).
-- Up to 150 tokens per review and a 10,000-token vocabulary cap.
-- Training subsets: 100, 500, 2,000, 5,000, 10,000 reviews.
-- Two otherwise equivalent bidirectional LSTM classifiers, one with a trainable 100-dimensional embedding and one with frozen GloVe 100-dimensional embeddings.
-- Early stopping on validation loss.
+- **Review length:** 150 tokens maximum (zero-padding for shorter inputs).
+- **Vocabulary:** at most 10,000 tokens, adapted from the training subset separately at each sample size.
+- **Training sizes:** 100, 500, 2,000, 5,000 and 10,000 balanced labeled reviews.
+- **Validation data:** the same 10,000 held-out reviews in each comparison, with a stratified split.
+- **Shared classifier:** bidirectional LSTM (16 units per direction), dropout (0.30), sigmoid output; up to six training epochs with early stopping.
+- **Embedding comparison:** trainable 100-dimensional embeddings versus 100-dimensional frozen GloVe embeddings. The remaining architecture is the same.
 
-## Included files
-- `Assignment_4_Kaggle_IMDB_Embeddings.ipynb` — Kaggle-ready code notebook **(source notebook; does not contain saved Kaggle execution outputs)**.
-- `assignment4_experiment_results.csv` — all 10 experiment records, accuracies, losses, and training information.
-- `assignment4_comparison_table.csv` — side-by-side accuracy comparison.
+## Observed validation results
 
-## Additional submission files
-A PDF write-up (`Assignment_4_Final_Report.pdf`) and a performance graph (`assignment4_accuracy_graph.png`) were prepared separately. They must be uploaded to this folder for a complete GitHub submission. The **executed Kaggle notebook exported with outputs saved** should replace the source-only notebook before submission.
+| Training reviews | Learned embedding | Frozen GloVe | Difference (percentage points) |
+| ---: | ---: | ---: | ---: |
+| 100 | 52.38% | 51.19% | +1.19 |
+| 500 | 61.91% | 56.71% | +5.20 |
+| 2,000 | 79.26% | 67.34% | +11.92 |
+| 5,000 | 81.90% | 76.34% | +5.56 |
+| 10,000 | **83.36%** | **79.54%** | **+3.82** |
 
-The PDF and plot were not yet uploaded by the automated repository update.
+A learned embedding had higher validation accuracy at all five tested training sizes, including the first tested size of 100 reviews. The largest observed advantage was **11.92 percentage points** at 2,000 reviews; no crossing point was established between tested sizes.
+
+![Validation accuracy comparison](assignment4_accuracy_graph.png)
+
+## Interpretation and boundaries
+
+Both methods improved when given more training examples. Learned embeddings can adapt directly to the movie-review task, whereas the GloVe vectors were held fixed; the results do not prove that this distinction alone caused the differences. All reported scores are **validation accuracies**, not results from an independent test set. These outcomes describe one sampling seed and one model configuration, not universal rankings of pretrained embeddings.
+
+The experiment **uses LSTM sequence models rather than Transformers**. Self-attention and Transformers were covered conceptually in the course; neither was trained for these results.
+
+## Research artifacts
+
+- `Assignment_4_Kaggle_IMDB_Embeddings.ipynb` — documented Kaggle-compatible experimental source code (no saved execution outputs in this copy).
+- `assignment4_experiment_results.csv` — ten recorded model runs, including validation accuracy, loss, training epochs, and embedding vocabulary information.
+- `assignment4_comparison_table.csv` — paired validation results at each training size.
+- `assignment4_accuracy_graph.png` — actual exported accuracy comparison chart.
+
+The separate final PDF report remains under review and is **not included in this repository folder yet**.
