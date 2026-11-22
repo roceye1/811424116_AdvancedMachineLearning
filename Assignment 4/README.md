@@ -38,7 +38,7 @@ The experiment used an **RNN-based bidirectional LSTM**. Transformers and attent
 
 | File | Contents |
 | --- | --- |
-| `Assignment_4_Kaggle_IMDB_Embeddings.ipynb` | Documented Kaggle-compatible Python code for the ten training runs; repository copy does not retain executed cell outputs |
+| `Assignment_4_Kaggle_IMDB_Embeddings.ipynb` | Executed Kaggle notebook containing the Python code, training logs, validation results, comparison table, and saved chart |
 | `Assignment_4_Report.pdf` | Six-page final written analysis with experimental design, charts, findings and limitations |
 | `assignment4_report.html` | Kaggle-generated standalone HTML record of the experimental setup, results and accuracy chart |
 | `assignment4_experiment_results.csv` | Ten experiment results including accuracy, loss, epoch counts and embedding coverage |
